@@ -67,6 +67,8 @@ async function loadWellData() {
     const MaxDock = headers.findIndex(h => h.startsWith("max dock"));
     const Water = headers.findIndex(h => h.startsWith("water"));
     const Electricity = headers.findIndex(h => h.startsWith("electrical"));
+    const DockBox = headers.findIndex(h => h.startsWith("dockbox"));
+    const Primeparking = headers.findIndex(h => h.startsWith("prime parking"));
 
 
     console.log(reserved_but_unpaid)
@@ -108,7 +110,9 @@ async function loadWellData() {
           price: "N/A",
           maxDock: "N/A",
           water: "N/A",
-          electricity: "N/A"
+          electricity: "N/A",
+          DockBox: "N/A",
+          Primeparking: "N/A",
         };
       }
 
@@ -124,6 +128,8 @@ async function loadWellData() {
       if (row[MaxDock]) d.maxDock = row[MaxDock];
       if (row[Water]) d.water = row[Water];
       if (row[Electricity]) d.electricity = row[Electricity];
+      if (row[DockBox]) d.DockBox = row[DockBox];
+      if (row[Primeparking]) d.Primeparking = row[Primeparking];
 
     });
 
@@ -179,6 +185,14 @@ function attachSvgEvents(dataMap) {
   <div class="tt-row">
     <span>Max Dock</span>
     <strong>${d.maxDock}</strong>
+  </div>
+  <div class="tt-row">
+    <span> Dock Box</span>
+    <strong>${d.DockBox}</strong>
+  </div>
+  <div class="tt-row">
+    <span>Prime Parking</span>
+    <strong>${d.Primeparking}</strong>
   </div>
 
   <div class="tt-row">
