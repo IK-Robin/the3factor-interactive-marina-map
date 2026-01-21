@@ -398,5 +398,5 @@
 .special-hover {
   fill: #fff !important;
   transition: fill 0.15s ease, opacity 0.15s ease;
-  opacity: 0.4 !important;
+  opacity: 0.3 !important;
 }
