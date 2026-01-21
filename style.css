@@ -367,8 +367,8 @@
 	gap: 10px;
 	position: fixed;
 	z-index: 222;
-	right: 41px;
 	top: 26px;
+	left: 24px;
 }
 .zoom_section button {
 	padding: 6px 12px;
