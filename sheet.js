@@ -141,6 +141,30 @@ async function loadWellData() {
     console.error("❌ Fetch error:", err);
   }
 }
+const SPECIAL_TOOLTIP_IDS = new Set([
+  "mikes_marine",
+  "canvas_shop",
+  "north_storage",
+  "all_season_marine",
+  "night_watchman",
+  "bath_house",
+  "sea_sparkle",
+  "ricks_boat_services",
+  "main_non_heated_barn",
+  "marina_store",
+  "diamond_yacht_sales",
+  "workshop",
+  "small_covered_boat_hoist",
+  "south_heated_barn",
+  "fitness_club",
+  "heated_boat_storage",
+  "cas_dock_pump",
+  "spill_response_container",
+  "parking_any_time",
+  "no_parking_any_time",
+  "parking_june_15_to_labor_day"
+]);
+
 
 /* ================================
    INTERACTIVE SVG TOOLTIP
@@ -169,46 +193,69 @@ function attachSvgEvents(dataMap) {
       }
 
 
-      tooltipMove.innerHTML = `
-  <div class="tt-header">Well ${d.well}</div>
+const isSpecial = SPECIAL_TOOLTIP_IDS.has(key);
 
-  <div class="tt-row">
-    <span>Water</span>
-    <strong>${d.water}</strong>
-  </div>
+if (isSpecial) {
+  // highlight the SVG element directly
+  el.classList.add("special-hover");
 
-  <div class="tt-row">
-    <span>Electricity</span>
-    <strong>${d.electricity}</strong>
-  </div>
+  tooltipMove.innerHTML = `
+    <div class="dock-tooltip" style="text-align: center;">
+      <div class="dock-title">${d.name || "Information"}</div>
 
-  <div class="tt-row">
-    <span>Max Dock</span>
-    <strong>${d.maxDock}</strong>
-  </div>
-  <div class="tt-row">
-    <span> Dock Box</span>
-    <strong>${d.DockBox}</strong>
-  </div>
-  <div class="tt-row">
-    <span>Prime Parking</span>
-    <strong>${d.Primeparking}</strong>
-  </div>
+      ${d.description ? `
+        <div class="tt-row">
+          <span>Details</span>
+          <strong>${d.description}</strong>
+        </div>` : ""
+      }
 
-  <div class="tt-row">
-    <span>Price</span>
-    <strong>${d.price}</strong>
-  </div>
+      ${d.hours ? `
+        <div class="tt-row">
+          <span>Hours</span>
+          <strong>${d.hours}</strong>
+        </div>` : ""
+      }
+    </div>
+  `;
+}
 
-  <div class="tt-status status-${status.replace(/\s+/g, '-').toLowerCase()}">
-    ${status}
-  </div>
-`;
+
+else {
+  // NORMAL WELL TOOLTIP
+  let status = "Available";
+
+  if (d.available?.toLowerCase() === "available") {
+    status = "Available";
+  } else if (d.reservedButUnpaid?.toLowerCase() === "reserved but unpaid") {
+    status = "Reserved but unpaid";
+  } else if (d.reservedAndPaid?.toLowerCase() === "reserved and paid") {
+    status = "Reserved and paid";
+  }
+
+  tooltipMove.innerHTML = `
+    <div class="dock-tooltip">
+      <div class="tt-header">Well ${d.well}</div>
+
+      <div class="tt-row"><span>Water</span><strong>${d.water}</strong></div>
+      <div class="tt-row"><span>Electricity</span><strong>${d.electricity}</strong></div>
+      <div class="tt-row"><span>Max Dock</span><strong>${d.maxDock}</strong></div>
+      <div class="tt-row"><span>Dock Box</span><strong>${d.DockBox}</strong></div>
+      <div class="tt-row"><span>Prime Parking</span><strong>${d.Primeparking}</strong></div>
+      <div class="tt-row"><span>Price</span><strong>${d.price}</strong></div>
+
+      <div class="tt-status status-${status.replace(/\s+/g, '-').toLowerCase()}">
+        ${status}
+      </div>
+    </div>
+  `;
+}
+
 
 
 
  tooltipMove.style.display = "block";
-      placeSmartInContainer(tooltipMove, e, 12,false);
+      placeSmartInContainer(tooltipMove, e, 20,false);
 
 
   el.classList.remove("available-hover", "unpaid-hover", "paid-hover");
@@ -229,7 +276,7 @@ function attachSvgEvents(dataMap) {
 
     el.addEventListener("mouseleave", () => {
       tooltipMove.style.display = "none";
-      el.classList.remove("available-hover", "unpaid-hover", "paid-hover");
+      el.classList.remove("available-hover", "unpaid-hover", "paid-hover","special-hover",);
     });
 
 

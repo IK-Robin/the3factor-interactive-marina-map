@@ -395,3 +395,8 @@
   stroke: #3ddad7;
   /* stroke-width: 2; */
 }
+.special-hover {
+  fill: #fff !important;
+  transition: fill 0.15s ease, opacity 0.15s ease;
+  opacity: 0.4 !important;
+}
