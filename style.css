@@ -307,13 +307,13 @@
 }
 
 .status-reserved-but-unpaid {
-  background: #fff4e5;
-  color: #b45309;
+  background: #F6E27F;
+  color: #000;
 }
 
 .status-reserved-and-paid {
-  background: #fde8e8;
-  color: #b91c1c;
+  background: #5B2D8B;
+  color: #fff;
 }
 
 
@@ -359,7 +359,7 @@
 }
 
 .soldLot {
-  fill: red !important;
+  fill: #5B2D8B !important;
 }/*# sourceMappingURL=style.css.map */
 
 .zoom_section {
@@ -382,17 +382,20 @@
 
 .paid-hover {
   filter: brightness(1.1);
-  stroke: #ff8a8a;
+  stroke: #4A2373;
+  fill: #4A2373 !important;
   /* stroke-width: 2; */
 }
 .unpaid-hover {
   filter: brightness(1.12);
-  stroke: #ffcc66;
+  stroke: #F6E27F;
+  fill: #F6E27F !important;
   /* stroke-width: 2; */
 }
 .available-hover {
   filter: brightness(1.15) saturate(1.1);
   stroke: #3ddad7;
+  fill: #3ddad7 !important;
   /* stroke-width: 2; */
 }
 .special-hover {

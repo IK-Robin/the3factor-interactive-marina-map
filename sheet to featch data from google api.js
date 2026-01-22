@@ -16,25 +16,6 @@ function isMobile() {
   return regex.test(navigator.userAgent);
 }
 
-function normalizeCsvValue(value) {
-  if (!value) return "N/A";
-
-  return String(value)
-    .replace(/^"(.*)"$/, "$1") // strip wrapping quotes
-    .replace(/""/g, '"')       // unescape CSV quotes
-    .trim();
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-
 let tooltipLeft = 0;
 let tooltipTop = 0;
 
@@ -43,102 +24,127 @@ let tooltipTop = 0;
 ================================ */
 let wellDataMap = {};
 
+/* ================================
+   NORMALIZE WELL → SVG ID
+================================ */
 function normalizeWellForSvg(well) {
-  return String(well)
+  return well
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "_");
 }
 
 /* ================================
-   NORMALIZE WELL → SVG ID
-================================ */
-function normalizePrice(value) {
-  if (!value) return "N/A";
-
-  return String(value)
-    .replace(/^"(.*)"$/, "$1")  // strip wrapping quotes
-    .replace(/\s*"+$/, "")      // remove stray trailing quote
-    .trim();
-}
-
-
-/* ================================
    FETCH + BUILD DATA MAP (API)
 ================================ */
 async function loadWellData() {
   try {
-    const response = await fetch("./GBY Master Operational Data Workbook.csv");
-    if (!response.ok) throw new Error("CSV fetch failed");
+    const url =
+      `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/` +
+      `${encodeURIComponent(SHEET_NAME)}?key=${API_KEY}`;
 
-    const csvText = await response.text();
-const parsed = Papa.parse(csvText, {
-  header: true,
-  skipEmptyLines: true,
-  transformHeader: h => h.trim().toLowerCase()
-});
+    const response = await fetch(url);
+    const json = await response.json();
+
+    if (json.error) {
+      console.error("❌ Sheets API error:", json.error);
+      return;
+    }
+
+    const values = json.values;
+    if (!values || values.length < 2) {
+      console.warn("⚠️ No sheet data found");
+      return;
+    }
+
+    // headers (row 1)
+    const headers = values[0].map(h => h.trim().toLowerCase());
+
+    const wellIndex = headers.findIndex(h => h.startsWith("well"));
+    const nameIndex = headers.findIndex(h => h.startsWith("name"));
+    const boatIndex = headers.findIndex(h => h.startsWith("boat type"));
+    const available = headers.findIndex(h => h.startsWith("available"));
+
+    const reserved_but_unpaid = headers.findIndex(h => h.startsWith("reserved but unpaid"));
+    const reserved_and_paid = headers.findIndex(h => h.startsWith("reserved and paid"));
+    const price = headers.findIndex(h => h.startsWith("new summer well price:"));
+    const MaxDock = headers.findIndex(h => h.startsWith("max dock"));
+    const Water = headers.findIndex(h => h.startsWith("water"));
+    const Electricity = headers.findIndex(h => h.startsWith("electrical"));
+    const DockBox = headers.findIndex(h => h.startsWith("dockbox"));
+    const Primeparking = headers.findIndex(h => h.startsWith("prime parking"));
 
 
-    wellDataMap = {};
+    console.log(reserved_but_unpaid)
+
+
+
+
+
+
+    if (wellIndex === -1) {
+      console.error("❌ Well column not found");
+      return;
+    }
+
     let currentWell = null;
 
-parsed.data.forEach(row => {
-  const rawWell = row["well"];
-  if (rawWell) currentWell = rawWell.trim();
-  if (!currentWell) return;
+    // rows
+    values.slice(1).forEach(row => {
+      const rawWell = row[wellIndex];
 
-  const key = normalizeWellForSvg(currentWell);
+      // carry-forward grouped wells
+      if (rawWell && rawWell.trim()) {
+        currentWell = rawWell.trim();
+      }
 
-  if (!wellDataMap[key]) {
-    wellDataMap[key] = {
-      well: currentWell,
-      name: "N/A",
-      boatType: "N/A",
-      available: "N/A",
-      reservedButUnpaid: "N/A",
-      reservedAndPaid: "N/A",
-      price: "N/A",
-      maxDock: "N/A",
-      water: "N/A",
-      electricity: "N/A",
-      DockBox: "N/A",
-      Primeparking: "N/A",
-    };
-  }
+      if (!currentWell) return;
 
-  const d = wellDataMap[key];
+      const svgKey = normalizeWellForSvg(currentWell);
 
-  if (row["name:"]) d.name = row["name:"].trim();
-  if (row["boat type/size:"]) d.boatType = row["boat type/size:"].trim();
-  if (row["available"]) d.available = row["available"].trim();
-  if (row["reserved but unpaid"]) d.reservedButUnpaid = row["reserved but unpaid"].trim();
-  if (row["reserved and paid"]) d.reservedAndPaid = row["reserved and paid"].trim();
+      // only first row per well
+      if (!wellDataMap[svgKey]) {
+        wellDataMap[svgKey] = {
+          well: currentWell,
+          name: "N/A",
+          boatType: "N/A",
+          available: "N/A",
+          reservedButUnpaid: "N/A",
+          reservedAndPaid: "N/A",
+          price: "N/A",
+          maxDock: "N/A",
+          water: "N/A",
+          electricity: "N/A",
+          DockBox: "N/A",
+          Primeparking: "N/A",
+        };
+      }
 
-  if (row["new summer well price:"])
-    d.price = normalizePrice(row["new summer well price:"]);
+      const d = wellDataMap[svgKey];
 
-  if (row["max dock"]) d.maxDock = row["max dock"].trim();
-  if (row["water"]) d.water = row["water"].trim();
-  if (row["electrical"]) d.electricity = row["electrical"].trim();
-  if (row["dockbox"]) d.DockBox = row["dockbox"].trim();
-  if (row["prime parking"]) d.Primeparking = row["prime parking"].trim();
-});
+      // overwrite ONLY if value exists in this row
+      if (row[nameIndex]) d.name = row[nameIndex];
+      if (row[boatIndex]) d.boatType = row[boatIndex];
+      if (row[available]) d.available = row[available];
+      if (row[reserved_but_unpaid]) d.reservedButUnpaid = row[reserved_but_unpaid];
+      if (row[reserved_and_paid]) d.reservedAndPaid = row[reserved_and_paid];
+      if (row[price]) d.price = row[price];
+      if (row[MaxDock]) d.maxDock = row[MaxDock];
+      if (row[Water]) d.water = row[Water];
+      if (row[Electricity]) d.electricity = row[Electricity];
+      if (row[DockBox]) d.DockBox = row[DockBox];
+      if (row[Primeparking]) d.Primeparking = row[Primeparking];
 
+    });
+
+    console.log("✅ wellDataMap ready:", wellDataMap);
 
     attachSvgEvents(wellDataMap);
-    console.log("Parsed CSV rows:", parsed.data.length);
-console.log("First row:", parsed.data[0]);
 
   } catch (err) {
-    console.error("CSV Load Error:", err);
+    console.error("❌ Fetch error:", err);
   }
 }
-
-
-
-
-
-
 const SPECIAL_TOOLTIP_IDS = new Set([
   "mikes_marine",
   "canvas_shop",
@@ -235,42 +241,24 @@ else {
   if (key === "end_of_t_dock") {
     d.well = "End Of T Dock";
   }
-tooltipMove.innerHTML = `
-  <div class="dock-tooltip">
-    <div class="tt-header">Well ${escapeHtml(d.well)}</div>
 
-    <div class="tt-row"><span>Water</span><strong>${escapeHtml(d.water)}</strong></div>
-    <div class="tt-row"><span>Electricity</span><strong>${escapeHtml(d.electricity)}</strong></div>
-    <div class="tt-row"><span>Max Dock</span><strong>${escapeHtml(d.maxDock)}</strong></div>
-    <div class="tt-row"><span>Dock Box</span><strong>${escapeHtml(d.DockBox)}</strong></div>
-    <div class="tt-row"><span>Prime Parking</span><strong>${escapeHtml(d.Primeparking)}</strong></div>
-    <div class="tt-row"><span>Price</span><strong>${escapeHtml(d.price)}</strong></div>
 
-    <div class="tt-status status-${status.replace(/\s+/g, "-").toLowerCase()}">
-      ${escapeHtml(status)}
+  tooltipMove.innerHTML = `
+    <div class="dock-tooltip">
+      <div class="tt-header">Well ${d.well}</div>
+
+      <div class="tt-row"><span>Water</span><strong>${d.water}</strong></div>
+      <div class="tt-row"><span>Electricity</span><strong>${d.electricity}</strong></div>
+      <div class="tt-row"><span>Max Dock</span><strong>${d.maxDock}</strong></div>
+      <div class="tt-row"><span>Dock Box</span><strong>${d.DockBox}</strong></div>
+      <div class="tt-row"><span>Prime Parking</span><strong>${d.Primeparking}</strong></div>
+      <div class="tt-row"><span>Price</span><strong>${d.price}</strong></div>
+
+      <div class="tt-status status-${status.replace(/\s+/g, '-').toLowerCase()}">
+        ${status}
+      </div>
     </div>
-  </div>
-`;
-
-
-
-
-  // tooltipMove.innerHTML = `
-  //   <div class="dock-tooltip">
-  //     <div class="tt-header">Well ${d.well}</div>
-
-  //     <div class="tt-row"><span>Water</span><strong>${d.water}</strong></div>
-  //     <div class="tt-row"><span>Electricity</span><strong>${d.electricity}</strong></div>
-  //     <div class="tt-row"><span>Max Dock</span><strong>${d.maxDock}</strong></div>
-  //     <div class="tt-row"><span>Dock Box</span><strong>${d.DockBox}</strong></div>
-  //     <div class="tt-row"><span>Prime Parking</span><strong>${d.Primeparking}</strong></div>
-  //     <div class="tt-row"><span>Price</span><strong>${d.price}</strong></div>
-
-  //     <div class="tt-status status-${status.replace(/\s+/g, '-').toLowerCase()}">
-  //       ${status}
-  //     </div>
-  //   </div>
-  // `;
+  `;
 }
 
 
@@ -312,37 +300,23 @@ tooltipMove.innerHTML = `
 
 
 
-function normalizeStatus(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
-  // availability coloring
-const svgtextId = `interactive_${key}`;
-const svgtextEl = document.getElementById(svgtextId);
+    // availability coloring
+    const svgtextId = `interactive_${key}`;
+    const svgtextEl = document.getElementById(svgtextId);
 
-if (!svgtextEl) return;
-
-const available   = normalizeStatus(dataMap[key].available);
-const unpaid      = normalizeStatus(dataMap[key].reservedButUnpaid);
-const paid        = normalizeStatus(dataMap[key].reservedAndPaid);
-
-// clear any previous inline fill
-svgtextEl.style.removeProperty("fill");
-
-// PRIORITY: paid > unpaid > available
-if (paid === "reserved and paid") {
-  svgtextEl.style.setProperty("fill", "#5B2D8B", "!important"); // deep purple
-}
-else if (unpaid === "reserved but unpaid") {
-  svgtextEl.style.setProperty("fill", "#F6E27F", "important"); // pastel yellow
-}
-else if (available === "available") {
-  svgtextEl.style.setProperty("fill", "#2ECC71", "important"); // green
-}
-
+    if (!svgtextEl) return;
+// console.log(dataMap[key].available)
+    if (dataMap[key].available.toLowerCase() === "available") {
+      svgtextEl.style.fill = "#2ECC71";
+      // console.log(dataMap[key].available)
+    } else if (dataMap[key].reservedButUnpaid.toLowerCase() === "reserved but unpaid") {
+      svgtextEl.style.fill = "#F6E27F";
+    }
+    else if (dataMap[key].reservedAndPaid.toLowerCase() === "reserved and paid") {
+      svgtextEl.style.fill = "#5B2D8B";
+      // svgtextEl.style.fill = "#1F3A5F";
+    }
 
   });
 }
